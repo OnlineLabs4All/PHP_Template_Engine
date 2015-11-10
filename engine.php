@@ -57,7 +57,7 @@ while ($run == true){
         break;
         case 3:
             $httpBody = array('success' => true,
-                              'results' => $expSpec,
+                              'results' => $expResults,
                               'errorReport' => '');
             try{
                 $response = Request::post($base_url.'/experiment')
