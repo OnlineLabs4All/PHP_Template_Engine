@@ -5,8 +5,14 @@ require_once('./vendor/nategood/httpful/bootstrap.php');
 require_once('config.php');
 use \Httpful\Request;
 
+if (isset($argv[1])){
+    $Xapikey = $argv[1];
+}
+
 $run = true;
 $state = 1;
+
+echo "\r\n Engine started with key: ".$Xapikey."\r\n";
 
 while ($run == true){
 
@@ -19,17 +25,14 @@ while ($run == true){
                     ->addHeader('X-apikey',$Xapikey)
                     ->expectsJson()
                     ->send();
-                echo "STATUS Response: ";
-                echo json_encode($response->body);
-                echo "\r\n";
+
+                waitOneSecond();
 
                 //Check if experiment was found
-
                 if ($response->body->success == true){
                     //If experiment exists, go to state 2 (retrieve experiment Specification)
                     $state = 2;
                 }
-                sleep(1);
             }
             catch (Exception $e) {
                 echo 'Error: '.$e->getMessage();
@@ -78,7 +81,13 @@ while ($run == true){
             $state = 1; // return to state 1
         break;
     }
-
 }
-?>
 
+
+function waitOneSecond()
+{
+    echo "Waiting For Experiments...\r";
+    usleep(1000000);
+}
+
+?>
