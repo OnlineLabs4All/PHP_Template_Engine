@@ -1,84 +1,69 @@
 <?php
 //Template Experiment Engige
 
+namespace ExperimentEngine;
+
 require_once('./vendor/nategood/httpful/bootstrap.php');
+require_once('DispatcherProxy.php');
 require_once('config.php');
-use \Httpful\Request;
+
 
 if (isset($argv[1])){
     $Xapikey = $argv[1];
 }
+else{
+    $Xapikey = APIKEY;
+}
 
 $run = true;
-$state = 1;
+$state = SEARCH;
 
-echo "\r\n Engine started with key: ".$Xapikey."\r\n";
+echo "\n Engine started with key: ".$Xapikey."\n";
+$engineProxy = new DispatcherProxy(BASE_URL, USERNAME, PASSWORD, $Xapikey);
 
 while ($run == true){
 
     switch($state){
+        case SEARCH: //Search State
+            $response = $engineProxy->searchNextExperiment();
 
-        case 1: //Search State
-            try{
-                $response = Request::get($base_url.'/status')
-                    ->authenticateWith($username,$password)
-                    ->addHeader('X-apikey',$Xapikey)
-                    ->expectsJson()
-                    ->send();
-
-                waitOneSecond();
-
-                //Check if experiment was found
-                if ($response->body->success == true){
-                    //If experiment exists, go to state 2 (retrieve experiment Specification)
-                    $state = 2;
+            if ($response['is_exception'] == false){
+                if ($response['result']->success == true){
+                    $state = DEQUEUES;
                 }
-            }
-            catch (Exception $e) {
-                echo 'Error: '.$e->getMessage();
-                echo "\r\n";
-                $run = false;
+                waitOneSecond();
             }
             break;
-        case 2:
-            try{
-                $response = Request::get($base_url.'/experiment')
-                    ->authenticateWith($username,$password)
-                    ->addHeader('X-apikey',$Xapikey)
-                    ->expectsJson()
-                    ->send();
-                echo "Experiment Specification: ";
-                echo json_encode($response->body->expSpecification);
-                echo "\r\n";
-            }
-            catch (Exception $e) {
-                echo 'Error: '.$e->getMessage();
-                echo "\r\n";
-                $run = false;
-            }
-            $state = 3;
-        break;
-        case 3:
-            $httpBody = array('success' => true,
-                              'results' => $expResults,
-                              'errorReport' => '');
-            try{
-                $response = Request::post($base_url.'/experiment')
-                    ->authenticateWith($username,$password)
-                    ->addHeader('X-apikey',$Xapikey)
-                    ->body(json_encode($httpBody))
-                    ->expectsJson()
-                    ->send();
-                echo json_encode($response->body);
-                echo "\r\n";
 
+        case DEQUEUES:
+            //Dequeues the experiment and retrieves the experiment specification
+            $response = $engineProxy->dequeueExperiment();
+
+            if ($response['is_exception'] == false){
+
+                //retrieve Experiment specification
+                $expSpec = $response['result']->expSpecification;
+                echo "Experiment Specification: ";
+                echo json_encode($expSpec);
             }
-            catch (Exception $e) {
-                echo 'Error: '.$e->getMessage();
-                echo "\r\n";
-                $run = false;
-            }
-            $state = 1; // return to state 1
+            $state = RUN; // go to next state "RUN"
+        break;
+
+        case RUN:
+
+            // Method to execute the experiment should be called here
+            // =========================================================
+            $success = true;
+            $results = EXP_RESULTS; //Return results from a constant
+            $errorReport = '';
+            // =========================================================
+
+            $response = $engineProxy->sendResults($success, $results, $errorReport);
+            echo "\n";
+            echo json_encode($response['result']);
+            echo "\n";
+            // return to state "SEARCH"
+            $state = SEARCH;
         break;
     }
 }
@@ -86,7 +71,7 @@ while ($run == true){
 
 function waitOneSecond()
 {
-    echo "Waiting For Experiments...\r";
+    echo "Waiting for new experiments...\r";
     usleep(1000000);
 }
 
