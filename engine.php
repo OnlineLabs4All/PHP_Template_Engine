@@ -27,11 +27,16 @@ while ($run == true){
         case SEARCH: //Search State
             $response = $engineProxy->searchNextExperiment();
 
-            if ($response['is_exception'] == false){
-                if ($response['result']->success == true){
+            if ($response['is_exception'] == true){
+                waitOneSecondSearch("SEARCH: ".$response['error_message']);
+            }
+            else{
+                if ($response['result']['success'] == true){
                     $state = DEQUEUES;
                 }
-                waitOneSecond();
+                else{
+                    waitOneSecondSearch($response['result']['message']);
+                }
             }
             break;
 
@@ -39,12 +44,16 @@ while ($run == true){
             //Dequeues the experiment and retrieves the experiment specification
             $response = $engineProxy->dequeueExperiment();
 
-            if ($response['is_exception'] == false){
-
-                //retrieve Experiment specification
-                $expSpec = $response['result']->expSpecification;
-                echo "Experiment Specification: ";
-                echo json_encode($expSpec);
+            if ($response['is_exception'] == true){
+                logMessage("DEQUEUES: ".$response['error_message']);
+            }
+            else{
+                if ($response['result']['success'] == true){
+                    //retrieve Experiment specification
+                    $expSpec = $response['result']['expSpecification'];
+                    echo "Experiment Specification: ";
+                    echo json_encode($expSpec);
+                }
             }
             $state = RUN; // go to next state "RUN"
         break;
@@ -59,9 +68,17 @@ while ($run == true){
             // =========================================================
 
             $response = $engineProxy->sendResults($success, $results, $errorReport);
-            echo "\n";
-            echo json_encode($response['result']);
-            echo "\n";
+
+            if ($response['is_exception'] == true){
+                logMessage("RUN: ".$response['error_message']);
+            }
+            else{
+                if ($response['result']['success'] == true){
+                    echo "\n";
+                    echo json_encode($response['result']);
+                    echo "\n";
+                }
+            }
             // return to state "SEARCH"
             $state = SEARCH;
         break;
@@ -69,10 +86,15 @@ while ($run == true){
 }
 
 
-function waitOneSecond()
+function waitOneSecondSearch($message)
 {
-    echo "Waiting for new experiments...\r";
+    echo $message."\r";
     usleep(1000000);
+}
+
+function logMessage($message)
+{
+    echo $message."\n";
 }
 
 ?>

@@ -27,38 +27,45 @@ class DispatcherProxy
     public function searchNextExperiment()
     {
         try{
-            $is_exception = false;
             $response= Request::get($this->base_url.'/status')
                 ->authenticateWith($this->username,$this->password)
                 ->addHeader('X-apikey',$this->apikey)
-                ->expectsJson()
                 ->send();
         }
         catch (Exception $e) {
-            $is_exception = true;
-            $response = array('error_message' => $e->getMessage());
+            return array('is_Exception' => true,
+                         'error_message' => $e->getMessage());
         }
-    return array('is_exception' => $is_exception,
-                 'result' => $response->body);
+
+        if ($response->code != 200){
+            return array('is_exception' => true,
+                         'error_message' => "Request failed with HTTP Error ".$response->code);
+        }
+
+        return array('is_exception' => false,
+                     'result' => (array)json_decode($response->body));
     }
 
     public function dequeueExperiment()
     {
         try{
-            $is_exception = false;
-            $response = Request::get($this->base_url.'/experiment')
+            $response= Request::get($this->base_url.'/experiment')
                 ->authenticateWith($this->username,$this->password)
                 ->addHeader('X-apikey',$this->apikey)
-                ->expectsJson()
                 ->send();
         }
         catch (Exception $e) {
-            $is_exception = true;
-            $response = array('error_message' => $e->getMessage());
+            return array('is_Exception' => true,
+                'error_message' => $e->getMessage());
         }
 
-        return array('is_exception' => $is_exception,
-                     'result' => $response->body);
+        if ($response->code != 200){
+            return array('is_exception' => true,
+                'error_message' => "Request failed with HTTP Error ".$response->code);
+        }
+
+        return array('is_exception' => false,
+            'result' => (array)json_decode($response->body));
     }
 
     public function sendResults($success, $results, $errorReport)
@@ -66,22 +73,26 @@ class DispatcherProxy
         $httpBody = array('success' => $success,
                           'results' => $results,
                           'errorReport' => $errorReport);
-
         try{
-            $is_exception = false;
-            $response = Request::post($this->base_url.'/experiment')
-                ->authenticateWith($this->username,$this->password)
-                ->addHeader('X-apikey',$this->apikey)
-                ->body(json_encode($httpBody))
-                ->expectsJson()
-                ->send();
-        }
+        $response= Request::post($this->base_url.'/experiment')
+            ->authenticateWith($this->username,$this->password)
+            ->addHeader('X-apikey',$this->apikey)
+            ->body(json_encode($httpBody))
+            ->send();
+    }
         catch (Exception $e) {
-            $is_exception = true;
-            $response = array('error_message' => $e->getMessage());
+        return array('is_Exception' => true,
+            'error_message' => $e->getMessage());
+    }
+
+        if ($response->code != 200){
+            return array('is_exception' => true,
+                'error_message' => "Request failed with HTTP Error ".$response->code);
         }
-        return array('is_exception' => $is_exception,
-                     'result' => $response->body);
+
+        return array('is_exception' => false,
+            'result' => (array)json_decode($response->body));
+
     }
 
 }
